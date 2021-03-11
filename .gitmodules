@@ -1,0 +1,3 @@
+[submodule "Assets/Plugins/Unity-Easings"]
+	path = Assets/Plugins/Unity-Easings
+	url = https://github.com/ryanslikesocool/Unity-Easings.git
