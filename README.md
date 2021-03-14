@@ -12,6 +12,7 @@ Download the latest version from [Releases](https://github.com/ryanslikesocool/U
 
 ## Usage
 - In your Forward Renderer asset, add the Sun Shafts render feature.  Add the URP Sun Shafts material to the material field.
+- `Pass Event` controls when the feature will render.  Please leave this at `Before Rendering Post Processing`.
 - `Opacity` controls the opacity of the entire effect.
 - `Resolution` controls how large the render textures created are.  `High` is full size, `Normal` is 1/4th size, and `Low` is 1/16th size.
 - `Blend Mode` controls how the effect is blended on top of the scene.  There are only `Screen` and `Add` blend modes.
