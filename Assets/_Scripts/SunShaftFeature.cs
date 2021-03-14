@@ -14,7 +14,7 @@ namespace SunShaft
             public RenderPassEvent passEvent = RenderPassEvent.AfterRenderingOpaques;
             public Material sunShaftMaterial = null;
 
-            [Space] public float blend = 0.5f;
+            [Space, Range(0, 1)] public float opacity = 1;
 
             [Space] public SunShaftResolution resolution = SunShaftResolution.Normal;
             public SunShaftBlendMode blendMode = SunShaftBlendMode.Screen;

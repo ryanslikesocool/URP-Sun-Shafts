@@ -67,13 +67,7 @@ namespace SunShaft
         {
             CommandBuffer cmd = CommandBufferPool.Get(profilerTag);
             //start rendering
-
-            Material mat = settings.sunShaftMaterial;
-
-            mat.SetFloat("_Blend", settings.blend);
-
             Camera camera = Camera.main;
-
             if (settings.useDepthTexture)
             {
                 camera.depthTextureMode |= DepthTextureMode.Depth;
@@ -89,6 +83,8 @@ namespace SunShaft
                 v.z = 0;
             }
 
+            Material mat = settings.sunShaftMaterial;
+            mat.SetFloat("_Opacity", settings.opacity);
             mat.SetVector("_BlurRadius4", new Vector4(1, 1, 0, 0) * settings.sunBlurRadius);
             mat.SetVector("_SunPosition", new Vector4(v.x, v.y, v.z, settings.maxRadius));
             mat.SetVector("_SunThreshold", settings.sunThreshold);
@@ -136,11 +132,11 @@ namespace SunShaft
 
             RenderTexture renderTexture = RenderTexture.GetTemporary(rtW, rtH, 0);
             renderTexture.name = "_ColorBufferRT";
-            cmd.Blit(sunBufferA, renderTexture);
+            cmd.Blit(sunBufferA, renderTexture, mat, 1);
             mat.SetTexture("_ColorBuffer", renderTexture);
             RenderTexture.ReleaseTemporary(renderTexture);
 
-            cmd.Blit(sunBufferA, renderer.cameraColorTarget, mat, (settings.blendMode == SunShaftBlendMode.Screen) ? 0 : 4);
+            cmd.Blit(renderer.cameraColorTarget, renderer.cameraColorTarget, mat, (settings.blendMode == SunShaftBlendMode.Screen) ? 0 : 4);
 
             //end rendering
             context.ExecuteCommandBuffer(cmd);

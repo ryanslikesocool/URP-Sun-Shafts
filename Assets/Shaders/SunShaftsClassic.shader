@@ -2,7 +2,7 @@
 
 Shader "RenderFeatures/SunShaftsClassic" {
 	Properties {
-		_MainTex ("Base", 2D) = "" {}
+		_MainTex ("Main Texture", 2D) = "" {}
 		_ColorBuffer ("Color", 2D) = "" {}
 		_Skybox ("Skybox", 2D) = "" {}
 	}
@@ -30,6 +30,7 @@ Shader "RenderFeatures/SunShaftsClassic" {
 	sampler2D _Skybox;
 	sampler2D_float _CameraDepthTexture;
 
+	float _Opacity;
 	uniform half4 _SunThreshold;
 		
 	uniform half4 _SunColor;
@@ -47,8 +48,9 @@ Shader "RenderFeatures/SunShaftsClassic" {
 		
 		#if UNITY_UV_STARTS_AT_TOP
 		o.uv1 = v.texcoord.xy;
-		if (_MainTex_TexelSize.y < 0)
+		if (_MainTex_TexelSize.y < 0) {
 			o.uv1.y = 1-o.uv1.y;
+		}
 		#endif				
 		
 		return o;
@@ -62,7 +64,7 @@ Shader "RenderFeatures/SunShaftsClassic" {
 		half4 colorB = tex2D (_ColorBuffer, i.uv.xy);
 		#endif
 		half4 depthMask = saturate (colorB * _SunColor);	
-		return 1.0f - (1.0f-colorA) * (1.0f-depthMask);	
+		return 1.0f - (1.0f - colorA) * (1.0f - depthMask * _Opacity);	
 	}
 
 	half4 fragAdd(v2f i) : SV_Target { 
@@ -73,7 +75,7 @@ Shader "RenderFeatures/SunShaftsClassic" {
 		half4 colorB = tex2D (_ColorBuffer, i.uv.xy);
 		#endif
 		half4 depthMask = saturate (colorB * _SunColor);	
-		return colorA + depthMask;	
+		return colorA + depthMask * _Opacity;	
 	}
 	
 	v2f_radial vert_radial( appdata_img v ) {
@@ -109,9 +111,9 @@ Shader "RenderFeatures/SunShaftsClassic" {
 		float depthSample = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv.xy);		
 		#endif
 		
-		half4 tex = tex2D (_MainTex, i.uv.xy);
+		half4 tex = tex2D(_MainTex, i.uv.xy);
 		
-		depthSample = Linear01Depth (depthSample);
+		depthSample = Linear01Depth(depthSample);
 		 
 		// consider maximum radius
 		#if UNITY_UV_STARTS_AT_TOP
@@ -119,13 +121,14 @@ Shader "RenderFeatures/SunShaftsClassic" {
 		#else
 		half2 vec = _SunPosition.xy - i.uv.xy;		
 		#endif
-		half dist = saturate (_SunPosition.w - length (vec.xy));		
+		half dist = saturate(_SunPosition.w - length(vec.xy));		
 		
-		half4 outColor = 0;
+		half4 outColor = 0; //TransformColor(tex) * dist;
+		//change the above value to make the rays appear?
 		
 		// consider shafts blockers
-		if (depthSample > 0.99) {
-			outColor = TransformColor (tex) * dist;
+		if (depthSample > 0.018) {
+			outColor = TransformColor(tex) * dist;
 		}
 			
 		return outColor;
@@ -133,12 +136,12 @@ Shader "RenderFeatures/SunShaftsClassic" {
 	
 	half4 frag_nodepth (v2f i) : SV_Target {
 		#if UNITY_UV_STARTS_AT_TOP
-		float4 sky = (tex2D (_Skybox, i.uv1.xy));
+		float4 sky = tex2D(_Skybox, i.uv1.xy);
 		#else
-		float4 sky = (tex2D (_Skybox, i.uv.xy));		
+		float4 sky = tex2D(_Skybox, i.uv.xy);		
 		#endif
 		
-		float4 tex = (tex2D (_MainTex, i.uv.xy));
+		float4 tex = tex2D(_MainTex, i.uv.xy);
 		
 		// consider maximum radius
 		#if UNITY_UV_STARTS_AT_TOP
@@ -146,19 +149,19 @@ Shader "RenderFeatures/SunShaftsClassic" {
 		#else
 		half2 vec = _SunPosition.xy - i.uv.xy;		
 		#endif
-		half dist = saturate (_SunPosition.w - length (vec));			
+		half dist = saturate(_SunPosition.w - length (vec));			
 		
-		half4 outColor = 0;		
-		
+		half4 outColor = 0; //TransformColor(tex) * dist;
+		//change the above value to make the rays appear?
+
 		// find unoccluded sky pixels
 		// consider pixel values that differ significantly between framebuffer and sky-only buffer as occluded
-		if (Luminance ( abs(sky.rgb - tex.rgb)) < 0.2)
-			outColor = TransformColor (sky) * dist;
+		if (Luminance(abs(sky.rgb - tex.rgb)) < 0.2) {
+			outColor = TransformColor(tex) * dist;
+		}
 		
 		return outColor;
 	}	
-
-	
 
 	ENDCG
 	
