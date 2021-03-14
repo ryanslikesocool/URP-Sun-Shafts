@@ -8,7 +8,7 @@ namespace SunShaft
         [System.Serializable]
         public class Settings
         {
-            public RenderPassEvent passEvent = RenderPassEvent.AfterRenderingOpaques;
+            public RenderPassEvent passEvent = RenderPassEvent.BeforeRenderingPostProcessing; 
             public Material sunShaftMaterial = null;
 
             [Space, Range(0, 1)] public float opacity = 1;
@@ -19,12 +19,10 @@ namespace SunShaft
             [Space] public Vector3 sunPosition = Vector3.forward * 10;
             [Range(1, 4)] public int radialBlurIterations = 2;
             [ColorUsage(false)] public Color sunColor = Color.white;
-            //Sun Threshold is very important!  Setting it to white will make the sun shafts invisible.
             [ColorUsage(false)] public Color sunThreshold = new Color(0.87f, 0.74f, 0.65f);
             public float sunBlurRadius = 2.5f;
             public float sunIntensity = 1.15f;
-
-            [Space] public float maxRadius = 0.75f;
+            public float maxRadius = 0.75f;
 
             [Space] public bool useDepthTexture = true;
         }
