@@ -1,6 +1,4 @@
-// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
-
-Shader "RenderFeatures/SunShaftsClassic" {
+Shader "RenderFeatures/URPSunShafts" {
 	Properties {
 		_MainTex ("Main Texture", 2D) = "" {}
 		_ColorBuffer ("Color", 2D) = "" {}

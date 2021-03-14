@@ -65,9 +65,9 @@ MonoBehaviour:
     blendMode: 0
     sunPosition: {x: 0, y: 0, z: 20}
     radialBlurIterations: 4
-    sunColor: {r: 0.4339623, g: 0.4339623, b: 0.4339623, a: 1}
-    sunThreshold: {r: 0.6226415, g: 0.6226415, b: 0.6226415, a: 1}
+    sunColor: {r: 0.4, g: 0.4, b: 0.4, a: 1}
+    sunThreshold: {r: 0.5, g: 0.5, b: 0.5, a: 1}
     sunBlurRadius: 0.5
-    sunIntensity: 0.5
+    sunIntensity: 0.75
     maxRadius: 0.75
     useDepthTexture: 1

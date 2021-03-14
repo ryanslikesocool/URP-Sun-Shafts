@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_Scenes/Testing.unity
+    path: Assets/Plugins/URP Sun Shafts/Samples/Scenes/Sample Scene.unity
     guid: fb6f5f6e1a90e46359ad4c6b1d821183
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: e0dfd9e7d4f0640798e44d6e0d046e04,
