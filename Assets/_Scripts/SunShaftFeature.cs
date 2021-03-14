@@ -21,8 +21,9 @@ namespace SunShaft
 
             [Space] public Vector3 sunPosition = Vector3.forward * 10;
             [Range(1, 4)] public int radialBlurIterations = 2;
-            public Color sunColor = Color.white;
-            public Color sunThreshold = new Color(0.87f, 0.74f, 0.65f);
+            [ColorUsage(false)] public Color sunColor = Color.white;
+            //Sun Threshold is very important!  Setting it to white will make the sun shafts invisible.
+            [ColorUsage(false)] public Color sunThreshold = new Color(0.87f, 0.74f, 0.65f);
             public float sunBlurRadius = 2.5f;
             public float sunIntensity = 1.15f;
 

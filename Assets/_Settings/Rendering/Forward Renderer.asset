@@ -58,16 +58,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Active: 1
   settings:
-    passEvent: 600
+    passEvent: 550
     sunShaftMaterial: {fileID: 2100000, guid: 44b46f49e391d4d46b15e54072331234, type: 2}
     opacity: 0.75
     resolution: 2
     blendMode: 0
-    sunPosition: {x: 0, y: 0, z: 10}
+    sunPosition: {x: 0, y: 0, z: 20}
     radialBlurIterations: 4
-    sunColor: {r: 1, g: 1, b: 1, a: 1}
-    sunThreshold: {r: 0.6792453, g: 0.6792453, b: 0.6792453, a: 1}
+    sunColor: {r: 0.4339623, g: 0.4339623, b: 0.4339623, a: 1}
+    sunThreshold: {r: 0.6226415, g: 0.6226415, b: 0.6226415, a: 1}
     sunBlurRadius: 0.5
-    sunIntensity: 1.15
+    sunIntensity: 0.5
     maxRadius: 0.75
     useDepthTexture: 1
