@@ -19,7 +19,7 @@ Download the latest version from [Releases](https://github.com/ryanslikesocool/U
 - `Sun Position` controls the position of the sun in world space.  It's recommended to put this whereever your main light is located.
 - `Radial Blur Iterations` controls how many times the render texture is resampled.  A larger number will give a nicer result.
 - `Sun Color` controls the color of the sun and the shafts.
-- `Sun Threshold` controls how light the scene can be for shafts to still appear.  This takes some trial and error to get the value right.  Grayscale values tend to work best.
+- `Sun Threshold` controls what colors do not emit shafts.  For example, if set to red, any red pixels will not create the effect, but other colros will.  This takes some trial and error to get the value right.
 - `Sun Blur Radius` controls how blurry the shafts will be.
 - `Sun Intensity` controls how intense the sun is.  This can be treated like an HDR modifier.
 - `Max Radius` controls the maximum size of a sun shaft.
