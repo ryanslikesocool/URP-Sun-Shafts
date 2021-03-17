@@ -1,12 +1,12 @@
-Shader "RenderFeatures/URPSunShafts" {
+Shader "RenderFeatures/URPSunShafts" {	
 	Properties {
 		_MainTex ("Main Texture", 2D) = "" {}
 		_ColorBuffer ("Color", 2D) = "" {}
 		_Skybox ("Skybox", 2D) = "" {}
 	}
 	
-	CGINCLUDE
-				
+	HLSLINCLUDE
+
 	#include "UnityCG.cginc"
 	
 	struct v2f {
@@ -14,7 +14,7 @@ Shader "RenderFeatures/URPSunShafts" {
 		float2 uv : TEXCOORD0;
 		#if UNITY_UV_STARTS_AT_TOP
 		float2 uv1 : TEXCOORD1;
-		#endif		
+		#endif
 	};
 		
 	struct v2f_radial {
@@ -22,11 +22,11 @@ Shader "RenderFeatures/URPSunShafts" {
 		float2 uv : TEXCOORD0;
 		float2 blurVector : TEXCOORD1;
 	};
-		
-	sampler2D _MainTex;
-	sampler2D _ColorBuffer;
-	sampler2D _Skybox;
-	sampler2D_float _CameraDepthTexture;
+	
+	UNITY_DECLARE_TEX2D(_MainTex);
+	UNITY_DECLARE_TEX2D(_ColorBuffer);
+	UNITY_DECLARE_TEX2D(_Skybox);
+	UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 
 	float _Opacity;
 	uniform half4 _SunThreshold;
@@ -39,7 +39,7 @@ Shader "RenderFeatures/URPSunShafts" {
 	#define SAMPLES_FLOAT 6.0f
 	#define SAMPLES_INT 6
 			
-	v2f vert( appdata_img v ) {
+	v2f vert(appdata_img v) {
 		v2f o;
 		o.pos = UnityObjectToClipPos(v.vertex);
 		o.uv = v.texcoord.xy;
@@ -55,28 +55,28 @@ Shader "RenderFeatures/URPSunShafts" {
 	}
 		
 	half4 fragScreen(v2f i) : SV_Target { 
-		half4 colorA = tex2D (_MainTex, i.uv.xy);
+		half4 colorA = UNITY_SAMPLE_TEX2D(_MainTex, i.uv.xy);
 		#if UNITY_UV_STARTS_AT_TOP
-		half4 colorB = tex2D (_ColorBuffer, i.uv1.xy);
+		half4 colorB = UNITY_SAMPLE_TEX2D(_ColorBuffer, i.uv1.xy);
 		#else
-		half4 colorB = tex2D (_ColorBuffer, i.uv.xy);
+		half4 colorB = UNITY_SAMPLE_TEX2D(_ColorBuffer, i.uv.xy);
 		#endif
-		half4 depthMask = saturate (colorB * _SunColor);	
+		half4 depthMask = saturate(colorB * _SunColor);	
 		return 1.0f - (1.0f - colorA) * (1.0f - depthMask * _Opacity);	
 	}
 
 	half4 fragAdd(v2f i) : SV_Target { 
-		half4 colorA = tex2D (_MainTex, i.uv.xy);
+		half4 colorA = UNITY_SAMPLE_TEX2D(_MainTex, i.uv.xy);
 		#if UNITY_UV_STARTS_AT_TOP
-		half4 colorB = tex2D (_ColorBuffer, i.uv1.xy);
+		half4 colorB = UNITY_SAMPLE_TEX2D(_ColorBuffer, i.uv1.xy);
 		#else
-		half4 colorB = tex2D (_ColorBuffer, i.uv.xy);
+		half4 colorB = UNITY_SAMPLE_TEX2D(_ColorBuffer, i.uv.xy);
 		#endif
-		half4 depthMask = saturate (colorB * _SunColor);	
+		half4 depthMask = saturate(colorB * _SunColor);	
 		return colorA + depthMask * _Opacity;	
 	}
 	
-	v2f_radial vert_radial( appdata_img v ) {
+	v2f_radial vert_radial(appdata_img v) {
 		v2f_radial o;
 		o.pos = UnityObjectToClipPos(v.vertex);
 		
@@ -91,25 +91,25 @@ Shader "RenderFeatures/URPSunShafts" {
 		half4 color = half4(0,0,0,0);
 		for(int j = 0; j < SAMPLES_INT; j++)   
 		{	
-			half4 tmpColor = tex2D(_MainTex, i.uv.xy);
+			half4 tmpColor = UNITY_SAMPLE_TEX2D(_MainTex, i.uv.xy);
 			color += tmpColor;
 			i.uv.xy += i.blurVector; 	
 		}
 		return color / SAMPLES_FLOAT;
 	}	
 	
-	half TransformColor (half4 skyboxValue) {
+	half TransformColor(half4 skyboxValue) {
 		return dot(max(skyboxValue.rgb - _SunThreshold.rgb, half3(0,0,0)), half3(1,1,1)); // threshold and convert to greyscale
 	}
 	
-	half4 frag_depth (v2f i) : SV_Target {
+	half4 frag_depth(v2f i) : SV_Target {
 		#if UNITY_UV_STARTS_AT_TOP
 		float depthSample = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv1.xy);
 		#else
 		float depthSample = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv.xy);		
 		#endif
 		
-		half4 tex = tex2D(_MainTex, i.uv.xy);
+		half4 tex = UNITY_SAMPLE_TEX2D(_MainTex, i.uv.xy);
 		
 		depthSample = Linear01Depth(depthSample);
 		 
@@ -121,8 +121,7 @@ Shader "RenderFeatures/URPSunShafts" {
 		#endif
 		half dist = saturate(_SunPosition.w - length(vec.xy));		
 		
-		half4 outColor = 0; //TransformColor(tex) * dist;
-		//change the above value to make the rays appear?
+		half4 outColor = 0;
 		
 		// consider shafts blockers
 		if (depthSample > 0.018) {
@@ -132,14 +131,14 @@ Shader "RenderFeatures/URPSunShafts" {
 		return outColor;
 	}
 	
-	half4 frag_nodepth (v2f i) : SV_Target {
+	half4 frag_nodepth(v2f i) : SV_Target {
 		#if UNITY_UV_STARTS_AT_TOP
-		float4 sky = tex2D(_Skybox, i.uv1.xy);
+		float4 sky = UNITY_SAMPLE_TEX2D(_Skybox, i.uv1.xy);
 		#else
-		float4 sky = tex2D(_Skybox, i.uv.xy);		
+		float4 sky = UNITY_SAMPLE_TEX2D(_Skybox, i.uv.xy);		
 		#endif
 		
-		float4 tex = tex2D(_MainTex, i.uv.xy);
+		float4 tex = UNITY_SAMPLE_TEX2D(_MainTex, i.uv.xy);
 		
 		// consider maximum radius
 		#if UNITY_UV_STARTS_AT_TOP
@@ -149,8 +148,7 @@ Shader "RenderFeatures/URPSunShafts" {
 		#endif
 		half dist = saturate(_SunPosition.w - length (vec));			
 		
-		half4 outColor = 0; //TransformColor(tex) * dist;
-		//change the above value to make the rays appear?
+		half4 outColor = 0;
 
 		// find unoccluded sky pixels
 		// consider pixel values that differ significantly between framebuffer and sky-only buffer as occluded
@@ -161,62 +159,67 @@ Shader "RenderFeatures/URPSunShafts" {
 		return outColor;
 	}	
 
-	ENDCG
+	ENDHLSL
 	
 	Subshader {
 		Pass { //0
 			ZTest Always Cull Off ZWrite Off
 
-			CGPROGRAM
-			
+			HLSLPROGRAM
+			#pragma target 3.0
+
 			#pragma vertex vert
 			#pragma fragment fragScreen
 			
-			ENDCG
+			ENDHLSL
 		}
 		
 		Pass { //1
 			ZTest Always Cull Off ZWrite Off
 
-			CGPROGRAM
+			HLSLPROGRAM
+			#pragma target 3.0
 			
 			#pragma vertex vert_radial
 			#pragma fragment frag_radial
 			
-			ENDCG
+			ENDHLSL
 		}
 		
 		Pass { //2
 			ZTest Always Cull Off ZWrite Off
 
-			CGPROGRAM
+			HLSLPROGRAM
+			#pragma target 3.0
 			
 			#pragma vertex vert
 			#pragma fragment frag_depth
 			
-			ENDCG
+			ENDHLSL
 		}
 		
 		Pass { //3
 			ZTest Always Cull Off ZWrite Off
 
-			CGPROGRAM
+			HLSLPROGRAM
+			#pragma target 3.0
 			
 			#pragma vertex vert
 			#pragma fragment frag_nodepth
 			
-			ENDCG
+			ENDHLSL
 		} 
 		
 		Pass { //4
 			ZTest Always Cull Off ZWrite Off
 
-			CGPROGRAM
+			HLSLPROGRAM
+			#pragma target 3.0
 			
 			#pragma vertex vert
 			#pragma fragment fragAdd
 			
-			ENDCG
+			ENDHLSL
 		} 
 	}
 
