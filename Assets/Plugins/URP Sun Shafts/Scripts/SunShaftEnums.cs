@@ -2,9 +2,9 @@ namespace SunShaft
 {
     public enum SunShaftResolution
     {
-        Low,
-        Normal,
-        High
+        Low = 4,
+        Normal = 2,
+        High = 1
     }
 
     public enum SunShaftBlendMode

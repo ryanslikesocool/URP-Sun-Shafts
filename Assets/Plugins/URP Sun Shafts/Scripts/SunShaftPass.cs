@@ -6,6 +6,14 @@ namespace SunShaft
 {
     public class SunShaftPass : ScriptableRenderPass
     {
+        private const string OPACITY_PROP = "_Opacity";
+        private const string BLUR_RADIUS_PROP = "_BlurRadius4";
+        private const string SUN_COLOR_PROP = "_SunColor";
+        private const string SUN_POSITION_PROP = "_SunPosition";
+        private const string SUN_THRESHOLD_PROP = "_SunThreshold";
+        private const string SKYBOX_PROP = "_Skybox";
+        private const string COLOR_BUFFER_PROP = "_ColorBuffer";
+
         private string profilerTag;
 
         private SunShaftFeature.Settings settings;
@@ -19,6 +27,8 @@ namespace SunShaft
         private readonly int sunBufferBId = Shader.PropertyToID("_SunBufferB");
         private RenderTargetIdentifier sunBufferA;
         private RenderTargetIdentifier sunBufferB;
+
+        private RenderTexture colorBufferRT;
 
         public SunShaftPass(string profilerTag, SunShaftFeature.Settings settings)
         {
@@ -35,18 +45,8 @@ namespace SunShaft
         public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
         {
             RenderTextureDescriptor blitTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-            //blitTargetDescriptor.depthBufferBits = 16;
 
-            int divider = 1;
-            switch (settings.resolution)
-            {
-                case SunShaftResolution.Low:
-                    divider = 4;
-                    break;
-                case SunShaftResolution.Normal:
-                    divider = 2;
-                    break;
-            }
+            int divider = (int)settings.resolution;
 
             rtW = blitTargetDescriptor.width / divider;
             rtH = blitTargetDescriptor.height / divider;
@@ -59,12 +59,17 @@ namespace SunShaft
 
             ConfigureTarget(sunBufferA);
             ConfigureTarget(sunBufferB);
+
+            colorBufferRT = RenderTexture.GetTemporary(rtW, rtH, 0);
+            colorBufferRT.name = "_ColorBufferRT"; //id render texture for frame debugger
         }
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
             CommandBuffer cmd = CommandBufferPool.Get(profilerTag);
+
             //start rendering
+
             Camera camera = Camera.main;
             if (settings.useDepthTexture)
             {
@@ -82,10 +87,10 @@ namespace SunShaft
             }
 
             Material mat = settings.sunShaftMaterial;
-            mat.SetFloat("_Opacity", settings.opacity);
-            mat.SetVector("_BlurRadius4", new Vector4(1, 1, 0, 0) * settings.sunBlurRadius);
-            mat.SetVector("_SunPosition", new Vector4(v.x, v.y, v.z, settings.maxRadius));
-            mat.SetVector("_SunThreshold", settings.sunThreshold);
+            mat.SetFloat(OPACITY_PROP, settings.opacity);
+            mat.SetVector(BLUR_RADIUS_PROP, new Vector4(1, 1, 0, 0) * settings.sunBlurRadius);
+            mat.SetVector(SUN_POSITION_PROP, new Vector4(v.x, v.y, v.z, settings.maxRadius));
+            mat.SetVector(SUN_THRESHOLD_PROP, settings.sunThreshold);
 
             if (!settings.useDepthTexture)
             {
@@ -94,7 +99,7 @@ namespace SunShaft
                 RenderTexture.active = tmpBuffer;
                 GL.ClearWithSkybox(false, camera);
 
-                mat.SetTexture("_Skybox", tmpBuffer);
+                mat.SetTexture(SKYBOX_PROP, tmpBuffer);
                 cmd.Blit(renderer.cameraColorTarget, sunBufferA, mat, 3);
                 RenderTexture.ReleaseTemporary(tmpBuffer);
             }
@@ -105,38 +110,35 @@ namespace SunShaft
 
             float ofs = settings.sunBlurRadius * (1 / 768f);
 
-            mat.SetVector("_BlurRadius4", new Vector4(ofs, ofs, 0, 0));
-            mat.SetVector("_SunPosition", new Vector4(v.x, v.y, v.z, settings.maxRadius));
+            mat.SetVector(BLUR_RADIUS_PROP, new Vector4(ofs, ofs, 0, 0));
 
             for (int i = 0; i < settings.radialBlurIterations; i++)
             {
                 cmd.Blit(sunBufferA, sunBufferB, mat, 1);
                 ofs = settings.sunBlurRadius * ((i * 2 + 1) * 6) / 768f;
-                mat.SetVector("_BlurRadius4", new Vector4(ofs, ofs, 0, 0));
+                mat.SetVector(BLUR_RADIUS_PROP, new Vector4(ofs, ofs, 0, 0));
 
                 cmd.Blit(sunBufferB, sunBufferA, mat, 1);
                 ofs = settings.sunBlurRadius * ((i * 2 + 2) * 6) / 768f;
-                mat.SetVector("_BlurRadius4", new Vector4(ofs, ofs, 0, 0));
+                mat.SetVector(BLUR_RADIUS_PROP, new Vector4(ofs, ofs, 0, 0));
             }
 
             if (v.z >= 0)
             {
-                mat.SetVector("_SunColor", new Vector4(settings.sunColor.r, settings.sunColor.g, settings.sunColor.b, settings.sunColor.a) * settings.sunIntensity);
+                mat.SetVector(SUN_COLOR_PROP, new Vector4(settings.sunColor.r, settings.sunColor.g, settings.sunColor.b, settings.sunColor.a) * settings.sunIntensity);
             }
             else
             {
-                mat.SetVector("_SunColor", Vector4.zero);
+                mat.SetVector(SUN_COLOR_PROP, Vector4.zero);
             }
 
-            RenderTexture renderTexture = RenderTexture.GetTemporary(rtW, rtH, 0);
-            renderTexture.name = "_ColorBufferRT";
-            cmd.Blit(sunBufferA, renderTexture, mat, 1);
-            mat.SetTexture("_ColorBuffer", renderTexture);
-            RenderTexture.ReleaseTemporary(renderTexture);
+            cmd.Blit(sunBufferA, colorBufferRT, mat, 1);
+            mat.SetTexture(COLOR_BUFFER_PROP, colorBufferRT);
 
             cmd.Blit(renderer.cameraColorTarget, renderer.cameraColorTarget, mat, (settings.blendMode == SunShaftBlendMode.Screen) ? 0 : 4);
 
             //end rendering
+
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
         }
@@ -145,6 +147,7 @@ namespace SunShaft
         {
             cmd.ReleaseTemporaryRT(sunBufferAId);
             cmd.ReleaseTemporaryRT(sunBufferBId);
+            RenderTexture.ReleaseTemporary(colorBufferRT);
         }
     }
 }
