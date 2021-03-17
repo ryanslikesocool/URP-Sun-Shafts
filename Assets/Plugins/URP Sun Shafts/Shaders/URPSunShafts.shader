@@ -1,7 +1,7 @@
 Shader "RenderFeatures/URPSunShafts" {	
 	Properties {
 		_MainTex ("Main Texture", 2D) = "" {}
-		_ColorBuffer ("Color", 2D) = "" {}
+		//_ColorBuffer ("Color", 2D) = "" {}
 		_Skybox ("Skybox", 2D) = "" {}
 	}
 	

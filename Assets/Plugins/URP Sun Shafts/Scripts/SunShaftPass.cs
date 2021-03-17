@@ -132,8 +132,9 @@ namespace SunShaft
                 mat.SetVector(SUN_COLOR_PROP, Vector4.zero);
             }
 
-            cmd.Blit(sunBufferA, colorBufferRT, mat, 1);
-            mat.SetTexture(COLOR_BUFFER_PROP, colorBufferRT);
+            //cmd.Blit(sunBufferA, colorBufferRT, mat, 1);
+            //mat.SetTexture(COLOR_BUFFER_PROP, colorBufferRT);
+            cmd.SetGlobalTexture(COLOR_BUFFER_PROP, colorBufferRT);
 
             cmd.Blit(renderer.cameraColorTarget, renderer.cameraColorTarget, mat, (settings.blendMode == SunShaftBlendMode.Screen) ? 0 : 4);
 
