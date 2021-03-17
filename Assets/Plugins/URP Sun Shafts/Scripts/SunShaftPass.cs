@@ -12,7 +12,7 @@ namespace SunShaft
         private const string SUN_POSITION_PROP = "_SunPosition";
         private const string SUN_THRESHOLD_PROP = "_SunThreshold";
         private const string SKYBOX_PROP = "_Skybox";
-        private const string COLOR_BUFFER_PROP = "_ColorBuffer";
+        private const string COLOR_BUFFER_PROP = "_SunShaftColorBuffer";
 
         private string profilerTag;
 
@@ -27,8 +27,6 @@ namespace SunShaft
         private readonly int sunBufferBId = Shader.PropertyToID("_SunBufferB");
         private RenderTargetIdentifier sunBufferA;
         private RenderTargetIdentifier sunBufferB;
-
-        private RenderTexture colorBufferRT;
 
         public SunShaftPass(string profilerTag, SunShaftFeature.Settings settings)
         {
@@ -59,9 +57,6 @@ namespace SunShaft
 
             ConfigureTarget(sunBufferA);
             ConfigureTarget(sunBufferB);
-
-            colorBufferRT = RenderTexture.GetTemporary(rtW, rtH, 0);
-            colorBufferRT.name = "_ColorBufferRT"; //id render texture for frame debugger
         }
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
@@ -132,9 +127,7 @@ namespace SunShaft
                 mat.SetVector(SUN_COLOR_PROP, Vector4.zero);
             }
 
-            //cmd.Blit(sunBufferA, colorBufferRT, mat, 1);
-            //mat.SetTexture(COLOR_BUFFER_PROP, colorBufferRT);
-            cmd.SetGlobalTexture(COLOR_BUFFER_PROP, colorBufferRT);
+            cmd.SetGlobalTexture(COLOR_BUFFER_PROP, sunBufferA);
 
             cmd.Blit(renderer.cameraColorTarget, renderer.cameraColorTarget, mat, (settings.blendMode == SunShaftBlendMode.Screen) ? 0 : 4);
 
@@ -148,7 +141,6 @@ namespace SunShaft
         {
             cmd.ReleaseTemporaryRT(sunBufferAId);
             cmd.ReleaseTemporaryRT(sunBufferBId);
-            RenderTexture.ReleaseTemporary(colorBufferRT);
         }
     }
 }

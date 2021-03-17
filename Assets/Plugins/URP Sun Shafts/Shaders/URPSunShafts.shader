@@ -1,7 +1,6 @@
 Shader "RenderFeatures/URPSunShafts" {	
 	Properties {
 		_MainTex ("Main Texture", 2D) = "" {}
-		//_ColorBuffer ("Color", 2D) = "" {}
 		_Skybox ("Skybox", 2D) = "" {}
 	}
 	
@@ -24,7 +23,7 @@ Shader "RenderFeatures/URPSunShafts" {
 	};
 	
 	UNITY_DECLARE_TEX2D(_MainTex);
-	UNITY_DECLARE_TEX2D(_ColorBuffer);
+	UNITY_DECLARE_TEX2D(_SunShaftColorBuffer);
 	UNITY_DECLARE_TEX2D(_Skybox);
 	UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 
@@ -57,9 +56,9 @@ Shader "RenderFeatures/URPSunShafts" {
 	half4 fragScreen(v2f i) : SV_Target { 
 		half4 colorA = UNITY_SAMPLE_TEX2D(_MainTex, i.uv.xy);
 		#if UNITY_UV_STARTS_AT_TOP
-		half4 colorB = UNITY_SAMPLE_TEX2D(_ColorBuffer, i.uv1.xy);
+		half4 colorB = UNITY_SAMPLE_TEX2D(_SunShaftColorBuffer, i.uv1.xy);
 		#else
-		half4 colorB = UNITY_SAMPLE_TEX2D(_ColorBuffer, i.uv.xy);
+		half4 colorB = UNITY_SAMPLE_TEX2D(_SunShaftColorBuffer, i.uv.xy);
 		#endif
 		half4 depthMask = saturate(colorB * _SunColor);	
 		return 1.0f - (1.0f - colorA) * (1.0f - depthMask * _Opacity);	
@@ -68,9 +67,9 @@ Shader "RenderFeatures/URPSunShafts" {
 	half4 fragAdd(v2f i) : SV_Target { 
 		half4 colorA = UNITY_SAMPLE_TEX2D(_MainTex, i.uv.xy);
 		#if UNITY_UV_STARTS_AT_TOP
-		half4 colorB = UNITY_SAMPLE_TEX2D(_ColorBuffer, i.uv1.xy);
+		half4 colorB = UNITY_SAMPLE_TEX2D(_SunShaftColorBuffer, i.uv1.xy);
 		#else
-		half4 colorB = UNITY_SAMPLE_TEX2D(_ColorBuffer, i.uv.xy);
+		half4 colorB = UNITY_SAMPLE_TEX2D(_SunShaftColorBuffer, i.uv.xy);
 		#endif
 		half4 depthMask = saturate(colorB * _SunColor);	
 		return colorA + depthMask * _Opacity;	
