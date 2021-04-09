@@ -8,7 +8,7 @@ The effect can be subtle, but when done well can add some much needed vibrancy t
 This asset was created with URP 10.4.0, but it *should* work on any version of URP that has custom renderer feature capabilities.
 
 ## Install
-Download the latest version from [Releases](https://github.com/ryanslikesocool/URP-Sun-Shafts/releases/tag/v1.0).\
+Download the latest version from [Releases](https://github.com/ryanslikesocool/URP-Sun-Shafts/releases).\
 Open the Unity project you want the package installed in.\
 Open the package to install into the project's Plugins folder.
 
