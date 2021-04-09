@@ -5,29 +5,7 @@ namespace SunShaft
 {
     public class SunShaftFeature : ScriptableRendererFeature
     {
-        [System.Serializable]
-        public class Settings
-        {
-            public RenderPassEvent passEvent = RenderPassEvent.BeforeRenderingPostProcessing; 
-            public Material sunShaftMaterial = null;
-
-            [Space, Range(0, 1)] public float opacity = 1;
-
-            [Space] public SunShaftResolution resolution = SunShaftResolution.Normal;
-            public SunShaftBlendMode blendMode = SunShaftBlendMode.Screen;
-
-            [Space] public Vector3 sunPosition = Vector3.forward * 10;
-            [Range(1, 4)] public int radialBlurIterations = 2;
-            [ColorUsage(false)] public Color sunColor = Color.white;
-            [ColorUsage(false)] public Color sunThreshold = new Color(0.87f, 0.74f, 0.65f);
-            public float sunBlurRadius = 2.5f;
-            public float sunIntensity = 1.15f;
-            public float maxRadius = 0.75f;
-
-            [Space] public bool useDepthTexture = true;
-        }
-
-        public Settings settings = new Settings();
+        public SunShaftSettings settings = new SunShaftSettings();
 
         private SunShaftPass sunShaftPass;
 

@@ -13,10 +13,11 @@ namespace SunShaft
         private const string SUN_THRESHOLD_PROP = "_SunThreshold";
         private const string SKYBOX_PROP = "_Skybox";
         private const string COLOR_BUFFER_PROP = "_SunShaftColorBuffer";
+        private const string DEPTH_THRESHOLD_PROP = "_DepthThreshold";
 
         private string profilerTag;
 
-        private SunShaftFeature.Settings settings;
+        private SunShaftSettings settings;
 
         private ScriptableRenderer renderer;
 
@@ -28,7 +29,7 @@ namespace SunShaft
         private RenderTargetIdentifier sunBufferA;
         private RenderTargetIdentifier sunBufferB;
 
-        public SunShaftPass(string profilerTag, SunShaftFeature.Settings settings)
+        public SunShaftPass(string profilerTag, SunShaftSettings settings)
         {
             this.profilerTag = profilerTag;
             this.settings = settings;
@@ -66,7 +67,10 @@ namespace SunShaft
             //start rendering
 
             Camera camera = Camera.main;
-            if (settings.useDepthTexture)
+
+            if (camera == null) { return; }
+
+            if (settings.renderMode == SunShaftRenderMode.DepthTexture)
             {
                 camera.depthTextureMode |= DepthTextureMode.Depth;
             }
@@ -83,13 +87,18 @@ namespace SunShaft
 
             Material mat = settings.sunShaftMaterial;
             mat.SetFloat(OPACITY_PROP, settings.opacity);
-            mat.SetVector(BLUR_RADIUS_PROP, new Vector4(1, 1, 0, 0) * settings.sunBlurRadius);
+            mat.SetVector(BLUR_RADIUS_PROP, new Vector4(settings.sunBlurRadius, settings.sunBlurRadius));
             mat.SetVector(SUN_POSITION_PROP, new Vector4(v.x, v.y, v.z, settings.maxRadius));
             mat.SetVector(SUN_THRESHOLD_PROP, settings.sunThreshold);
+            mat.SetFloat(DEPTH_THRESHOLD_PROP, settings.depthThreshold);
 
-            if (!settings.useDepthTexture)
+            if (settings.renderMode == SunShaftRenderMode.DepthTexture)
             {
-                var format = camera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default;
+                cmd.Blit(renderer.cameraColorTarget, sunBufferA, mat, 2);
+            }
+            else if (settings.renderMode == SunShaftRenderMode.Skybox)
+            {
+                RenderTextureFormat format = camera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default;
                 RenderTexture tmpBuffer = RenderTexture.GetTemporary(rtW, rtH, 0, format);
                 RenderTexture.active = tmpBuffer;
                 GL.ClearWithSkybox(false, camera);
@@ -98,37 +107,37 @@ namespace SunShaft
                 cmd.Blit(renderer.cameraColorTarget, sunBufferA, mat, 3);
                 RenderTexture.ReleaseTemporary(tmpBuffer);
             }
-            else
+            else if (settings.renderMode == SunShaftRenderMode.Color)
             {
-                cmd.Blit(renderer.cameraColorTarget, sunBufferA, mat, 2);
+                RenderTextureFormat format = camera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default;
+                RenderTexture tmpBuffer = RenderTexture.GetTemporary(rtW, rtH, 0, format);
+                RenderTexture.active = tmpBuffer;
+                GL.Clear(false, true, camera.backgroundColor);
+
+                mat.SetTexture(SKYBOX_PROP, tmpBuffer);
+                cmd.Blit(renderer.cameraColorTarget, sunBufferA, mat, 3);
+                RenderTexture.ReleaseTemporary(tmpBuffer);
             }
+
 
             float ofs = settings.sunBlurRadius * (1 / 768f);
 
-            mat.SetVector(BLUR_RADIUS_PROP, new Vector4(ofs, ofs, 0, 0));
+            mat.SetVector(BLUR_RADIUS_PROP, new Vector2(ofs, ofs));
 
             for (int i = 0; i < settings.radialBlurIterations; i++)
             {
                 cmd.Blit(sunBufferA, sunBufferB, mat, 1);
                 ofs = settings.sunBlurRadius * ((i * 2 + 1) * 6) / 768f;
-                mat.SetVector(BLUR_RADIUS_PROP, new Vector4(ofs, ofs, 0, 0));
+                mat.SetVector(BLUR_RADIUS_PROP, new Vector2(ofs, ofs));
 
                 cmd.Blit(sunBufferB, sunBufferA, mat, 1);
                 ofs = settings.sunBlurRadius * ((i * 2 + 2) * 6) / 768f;
-                mat.SetVector(BLUR_RADIUS_PROP, new Vector4(ofs, ofs, 0, 0));
+                mat.SetVector(BLUR_RADIUS_PROP, new Vector2(ofs, ofs));
             }
 
-            if (v.z >= 0)
-            {
-                mat.SetVector(SUN_COLOR_PROP, new Vector4(settings.sunColor.r, settings.sunColor.g, settings.sunColor.b, settings.sunColor.a) * settings.sunIntensity);
-            }
-            else
-            {
-                mat.SetVector(SUN_COLOR_PROP, Vector4.zero);
-            }
+            mat.SetVector(SUN_COLOR_PROP, v.z >= 0 ? (new Vector4(settings.sunColor.r, settings.sunColor.g, settings.sunColor.b, settings.sunColor.a) * settings.sunIntensity) : Vector4.zero);
 
             cmd.SetGlobalTexture(COLOR_BUFFER_PROP, sunBufferA);
-
             cmd.Blit(renderer.cameraColorTarget, renderer.cameraColorTarget, mat, (settings.blendMode == SunShaftBlendMode.Screen) ? 0 : 4);
 
             //end rendering

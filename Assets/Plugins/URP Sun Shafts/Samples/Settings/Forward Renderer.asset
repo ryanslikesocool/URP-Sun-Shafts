@@ -60,14 +60,15 @@ MonoBehaviour:
   settings:
     passEvent: 550
     sunShaftMaterial: {fileID: 2100000, guid: 44b46f49e391d4d46b15e54072331234, type: 2}
-    opacity: 0.75
-    resolution: 2
+    renderMode: 2
+    resolution: 4
     blendMode: 0
+    depthThreshold: 0.018
+    opacity: 1
     sunPosition: {x: 0, y: 0, z: 20}
     radialBlurIterations: 4
-    sunColor: {r: 0.6, g: 0.6, b: 0.6, a: 1}
-    sunThreshold: {r: 0.3, g: 0.3, b: 0.3, a: 1}
+    sunColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
+    sunThreshold: {r: 0, g: 0, b: 0, a: 1}
     sunBlurRadius: 0.25
     sunIntensity: 0.75
-    maxRadius: 0.75
-    useDepthTexture: 1
+    maxRadius: 2

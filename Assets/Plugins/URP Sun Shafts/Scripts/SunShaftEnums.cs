@@ -12,4 +12,11 @@ namespace SunShaft
         Screen,
         Add
     }
+
+    public enum SunShaftRenderMode
+    {
+        DepthTexture,
+        Skybox,
+        Color
+    }
 }
