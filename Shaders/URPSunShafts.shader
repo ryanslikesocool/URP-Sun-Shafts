@@ -9,25 +9,23 @@ Shader "RenderFeatures/URPSunShafts"
 
 	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
-	#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderVariablesFunctions.hlsl"
 	#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+	#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 	#include "SunShaftFunctions.hlsl"
 
 	struct Attributes
 	{
 		float4 positionOS : POSITION;
 		float2 texcoord : TEXCOORD0;
+		UNITY_VERTEX_INPUT_INSTANCE_ID
 	};
 	
 	struct Varyings
 	{
 		float4 positionCS : SV_POSITION;
-		#if UNITY_UV_STARTS_AT_TOP
-		float2 uv : TEXCOORD1;
-		#else
 		float2 uv : TEXCOORD0;
-		#endif
-		float4 screenPos : TEXCOORD2;
+		float4 screenPos : TEXCOORD1;
 		UNITY_VERTEX_OUTPUT_STEREO
 		UNITY_VERTEX_INPUT_INSTANCE_ID
 	};
@@ -37,7 +35,6 @@ Shader "RenderFeatures/URPSunShafts"
 		float4 positionCS : SV_POSITION;
 		float2 uv : TEXCOORD0;
 		float2 blurVector : TEXCOORD1;
-		float4 screenPos : TEXCOORD2;
 		UNITY_VERTEX_OUTPUT_STEREO
 		UNITY_VERTEX_INPUT_INSTANCE_ID
 	};
@@ -58,27 +55,26 @@ Shader "RenderFeatures/URPSunShafts"
 	uniform float4 _SunThreshold;
 	uniform float4 _SunPosition;
 	uniform float4 _BlurRadius;
-
-	#define SAMPLES_FLOAT 6.0f
-	#define SAMPLES_INT 6
 			
 	Varyings vert(Attributes IN)
 	{
 		Varyings OUT;
 
 		UNITY_SETUP_INSTANCE_ID(IN);
+		// UNITY_TRANSFER_INSTANCE_ID seems to be causing issues
 		UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 		UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 
 		OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
 		OUT.screenPos = ComputeScreenPos(OUT.positionCS);
 		
-		OUT.uv = IN.texcoord.xy;
+		OUT.uv = UnityStereoTransformScreenSpaceTex(IN.texcoord);
 		#if UNITY_UV_STARTS_AT_TOP
-		if (_MainTex_TexelSize.y < 0) {
+		if (_MainTex_TexelSize.y < 0)
+		{
 			OUT.uv.y = 1 - OUT.uv.y;
 		}
-		#endif				
+		#endif			
 		
 		return OUT;
 	}
@@ -92,9 +88,8 @@ Shader "RenderFeatures/URPSunShafts"
 		UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 
 		OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
-		OUT.screenPos = ComputeScreenPos(OUT.positionCS);
 
-		OUT.uv.xy = IN.texcoord.xy;
+		OUT.uv = UnityStereoTransformScreenSpaceTex(IN.texcoord);
 		OUT.blurVector = (_SunPosition.xy - IN.texcoord.xy) * _BlurRadius.xy;	
 		
 		return OUT; 
@@ -128,16 +123,16 @@ Shader "RenderFeatures/URPSunShafts"
 	float4 frag_radial(Varyings_radial IN) : SV_Target 
 	{
 		UNITY_SETUP_INSTANCE_ID(IN);
-		UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
+		UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
 
 		float4 color = 0;
-		for(int j = 0; j < SAMPLES_INT; j++)   
+		for(int j = 0; j < 6; j++)   
 		{	
 			float4 tmpColor = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv);
 			color += tmpColor;
 			IN.uv.xy += IN.blurVector;	
 		}
-		return saturate(color / SAMPLES_FLOAT);
+		return saturate(color / 6.0);
 	}
 	
 	float4 frag_depth(Varyings IN) : SV_Target
@@ -191,6 +186,9 @@ Shader "RenderFeatures/URPSunShafts"
 		Tags
         {
             "RenderPipeline"="UniversalPipeline"
+			"Queue"="Transparent"
+			"IgnoreProjector"="True"
+			"RenderType"="Transparent"
         }
 
 		Pass // 0
@@ -200,7 +198,7 @@ Shader "RenderFeatures/URPSunShafts"
 			ZWrite Off
 
 			HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.5
             #pragma multi_compile_instancing
 
 			#pragma vertex vert
@@ -216,7 +214,7 @@ Shader "RenderFeatures/URPSunShafts"
 			ZWrite Off
 
 			HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.5
             #pragma multi_compile_instancing
 			
 			#pragma vertex vert_radial
@@ -232,7 +230,7 @@ Shader "RenderFeatures/URPSunShafts"
 			ZWrite Off
 
 			HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.5
             #pragma multi_compile_instancing
 			
 			#pragma vertex vert
@@ -248,7 +246,7 @@ Shader "RenderFeatures/URPSunShafts"
 			ZWrite Off
 
 			HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.5
             #pragma multi_compile_instancing
 			
 			#pragma vertex vert
@@ -264,7 +262,7 @@ Shader "RenderFeatures/URPSunShafts"
 			ZWrite Off
 
 			HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.5
             #pragma multi_compile_instancing
 			
 			#pragma vertex vert
