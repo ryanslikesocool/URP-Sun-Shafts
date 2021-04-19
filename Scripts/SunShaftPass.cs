@@ -3,9 +3,6 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-#if UNITY_XR
-using UnityEngine.XR;
-#endif
 
 namespace SunShaft
 {
@@ -18,6 +15,7 @@ namespace SunShaft
         public const string SUN_THRESHOLD_PROP = "_SunThreshold";
         public const string SKYBOX_PROP = "_Skybox";
         public const string COLOR_BUFFER_PROP = "_SunShaftColorBuffer";
+        public const string COLOR_TEX_PROP = "_ColorTexture";
         public const string DEPTH_THRESHOLD_PROP = "_DepthThreshold";
 
         private string profilerTag;
@@ -31,10 +29,6 @@ namespace SunShaft
         private readonly int sunBufferBId = Shader.PropertyToID("_SunBufferB");
         private RenderTargetIdentifier sunBufferA;
         private RenderTargetIdentifier sunBufferB;
-
-#if UNITY_XR
-        private Vector2 eyeSize;
-#endif
 
         public SunShaftPass(string profilerTag, SunShaftSettings settings)
         {
@@ -52,34 +46,18 @@ namespace SunShaft
             mat.SetFloat(OPACITY_PROP, settings.opacity);
             mat.SetVector(SUN_THRESHOLD_PROP, settings.sunColorThreshold);
             mat.SetVector(BLUR_RADIUS_PROP, Vector2.one * settings.sunBlurRadius);
-
-            float ofs = settings.Offset;
-            mat.SetVector(BLUR_RADIUS_PROP, Vector2.one * ofs);
+            mat.SetVector(BLUR_RADIUS_PROP, Vector2.one * settings.Offset);
         }
 
         public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
         {
-#if UNITY_XR
-            RenderTextureDescriptor blitTargetDescriptor = XRSettings.eyeTextureDesc;
-            if (blitTargetDescriptor.Equals(default(RenderTextureDescriptor)))
-            {
-                blitTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-            }
-            else
-            {
-                eyeSize = new Vector2(XRSettings.eyeTextureWidth, XRSettings.eyeTextureHeight);
-            }
-#else
-            RenderTextureDescriptor blitTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-#endif
-            blitTargetDescriptor.width /= settings.Resolution;
-            blitTargetDescriptor.height /= settings.Resolution;
+            RenderTextureDescriptor cameraTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
+            rtW = cameraTargetDescriptor.width / settings.Resolution;
+            rtH = cameraTargetDescriptor.height / settings.Resolution;
+            RenderTextureDescriptor newTargetDescriptor = new RenderTextureDescriptor(rtW, rtH, cameraTargetDescriptor.colorFormat, cameraTargetDescriptor.depthBufferBits);
 
-            rtW = blitTargetDescriptor.width;
-            rtH = blitTargetDescriptor.height;
-
-            cmd.GetTemporaryRT(sunBufferAId, blitTargetDescriptor);
-            cmd.GetTemporaryRT(sunBufferBId, blitTargetDescriptor);
+            cmd.GetTemporaryRT(sunBufferAId, newTargetDescriptor);
+            cmd.GetTemporaryRT(sunBufferBId, newTargetDescriptor);
 
             sunBufferA = new RenderTargetIdentifier(sunBufferAId);
             sunBufferB = new RenderTargetIdentifier(sunBufferBId);
@@ -91,37 +69,38 @@ namespace SunShaft
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
             CommandBuffer cmd = CommandBufferPool.Get(profilerTag);
-            ScriptableRenderer renderer = renderingData.cameraData.renderer;
-            Camera camera = Camera.main;
+            CameraData cameraData = renderingData.cameraData;
+            ScriptableRenderer renderer = cameraData.renderer;
+            Camera camera = cameraData.camera;
             if (camera == null) { return; }
+            if (XRGraphics.enabled)
+            {
+                context.StartMultiEye(camera);
+            }
             // start rendering
 
 #if UNITY_EDITOR
-            ApplySettings();
+            if (!Application.isPlaying)
+            {
+                ApplySettings();
+            }
 #endif
 
-            Material mat = settings.sunShaftMaterial;
+            Material material = settings.sunShaftMaterial;
 
             Vector4 sunScreenPosition = camera.WorldToViewportPoint(settings.sunPosition);
 
-            mat.SetVector(SUN_POSITION_PROP, sunScreenPosition.SetW(settings.maxRadius));
-            mat.SetVector(SUN_COLOR_PROP, sunScreenPosition.z >= 0 ? settings.SunColorIntensity : Vector4.zero);
+            material.SetVector(SUN_POSITION_PROP, sunScreenPosition.SetW(settings.maxRadius));
+            material.SetVector(SUN_COLOR_PROP, sunScreenPosition.z >= 0 ? settings.SunColorIntensity : Vector4.zero);
 
-            if (settings.renderMode == SunShaftRenderMode.Depth)
+            if (false)// settings.renderMode == SunShaftRenderMode.Depth)
             {
-                cmd.Blit(renderer.cameraColorTarget, sunBufferA, mat, 2);
+                cmd.RenderAndSetTexture(camera, COLOR_TEX_PROP, renderer.cameraColorTarget, sunBufferA, material, 2);
             }
             else
             {
-#if UNITY_XR
-                RenderTextureFormat format = XRSettings.eyeTextureDesc.colorFormat;
-                if (format.Equals(default(RenderTextureFormat)))
-                {
-                    format = camera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default;
-                }
-#else
                 RenderTextureFormat format = camera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default;
-#endif
+
                 RenderTexture tmpBuffer = RenderTexture.GetTemporary(rtW, rtH, 0, format);
                 RenderTexture.active = tmpBuffer;
 
@@ -134,8 +113,7 @@ namespace SunShaft
                     cmd.ClearRenderTarget(false, true, camera.backgroundColor);
                 }
 
-                mat.SetTexture(SKYBOX_PROP, tmpBuffer);
-                cmd.Blit(renderer.cameraColorTarget, sunBufferA, mat, 3);
+                cmd.RenderAndSetTexture(camera, SKYBOX_PROP, tmpBuffer, sunBufferA, material, 3);
                 RenderTexture.ReleaseTemporary(tmpBuffer);
             }
 
@@ -143,17 +121,21 @@ namespace SunShaft
 
             for (int i = 0; i < settings.radialBlurIterations; i++)
             {
-                cmd.Blit(sunBufferA, sunBufferB, mat, 1);
-                mat.SetVector(BLUR_RADIUS_PROP, Vector2.one * ofs * (i * 2 + 1) * 6);
+                cmd.RenderAndSetTexture(camera, COLOR_TEX_PROP, sunBufferA, sunBufferB, material, 1);
+                material.SetVector(BLUR_RADIUS_PROP, Vector2.one * ofs * (i * 2 + 1) * 6);
 
-                cmd.Blit(sunBufferB, sunBufferA, mat, 1);
-                mat.SetVector(BLUR_RADIUS_PROP, Vector2.one * ofs * (i * 2 + 2) * 6);
+                cmd.RenderAndSetTexture(camera, COLOR_TEX_PROP, sunBufferB, sunBufferA, material, 1);
+                material.SetVector(BLUR_RADIUS_PROP, Vector2.one * ofs * (i * 2 + 2) * 6);
             }
 
             cmd.SetGlobalTexture(COLOR_BUFFER_PROP, sunBufferA);
-            cmd.Blit(renderer.cameraColorTarget, renderer.cameraColorTarget, mat, settings.BlendPass);
+            cmd.RenderAndSetTexture(camera, COLOR_TEX_PROP, renderer.cameraColorTarget, renderer.cameraColorTarget, material, settings.BlendPass);
 
             // end rendering
+            if (XRGraphics.enabled)
+            {
+                context.StopMultiEye(camera);
+            }
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
         }

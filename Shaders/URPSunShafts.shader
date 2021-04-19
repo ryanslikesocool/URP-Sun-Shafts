@@ -2,7 +2,7 @@ Shader "RenderFeatures/URPSunShafts"
 {	
 	Properties
 	{
-		[HideInInspector] _MainTex ("Main Texture", 2D) = "" {}
+		[HideInInspector] _ColorTexture ("Color Texture", 2D) = "" {}
 	}
 	
 	HLSLINCLUDE
@@ -39,14 +39,14 @@ Shader "RenderFeatures/URPSunShafts"
 		UNITY_VERTEX_INPUT_INSTANCE_ID
 	};
 	
-	SAMPLER(sampler_MainTex);
+	SAMPLER(sampler_ColorTexture);
 
 	CBUFFER_START(UnityPerMaterial)
-		uniform TEXTURE2D(_MainTex);
-		uniform TEXTURE2D(_SunShaftColorBuffer);
-		uniform TEXTURE2D(_Skybox);
+		TEXTURE2D(_ColorTexture);
+		TEXTURE2D(_SunShaftColorBuffer);
+		TEXTURE2D(_Skybox);
 
-		uniform float4 _MainTex_TexelSize;
+		uniform float4 _ColorTexture_TexelSize;
 	CBUFFER_END
 
 	uniform float _Opacity;
@@ -61,7 +61,6 @@ Shader "RenderFeatures/URPSunShafts"
 		Varyings OUT;
 
 		UNITY_SETUP_INSTANCE_ID(IN);
-		// UNITY_TRANSFER_INSTANCE_ID seems to be causing issues
 		UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
 		UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 
@@ -70,7 +69,7 @@ Shader "RenderFeatures/URPSunShafts"
 		
 		OUT.uv = UnityStereoTransformScreenSpaceTex(IN.texcoord);
 		#if UNITY_UV_STARTS_AT_TOP
-		if (_MainTex_TexelSize.y < 0)
+		if (_ColorTexture_TexelSize.y < 0)
 		{
 			OUT.uv.y = 1 - OUT.uv.y;
 		}
@@ -100,11 +99,20 @@ Shader "RenderFeatures/URPSunShafts"
 		UNITY_SETUP_INSTANCE_ID(IN);
 		UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
 
-		float4 colorA = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv);
-		float4 colorB = SAMPLE_TEXTURE2D(_SunShaftColorBuffer, sampler_MainTex, IN.uv);
+		float4 colorA = SAMPLE_TEXTURE2D(_ColorTexture, sampler_ColorTexture, IN.uv);
+		float4 colorB = SAMPLE_TEXTURE2D(_SunShaftColorBuffer, sampler_ColorTexture, IN.uv);
 
 		float4 depthMask = saturate(colorB * _SunColor);
 
+		/*if (distance(IN.uv, _SunPosition.xy) < 0.025) {
+			depthMask = float4(1, 0, 1, 1);
+		}
+		if (distance(IN.uv.x, 0.5) < 0.0025) {
+			depthMask = float4(0, 1, 1, 1);
+		}
+		if (distance(IN.uv.y, 0.5) < 0.0025) {
+			depthMask = float4(0, 1, 1, 1);
+		}*/
 		return saturate(1.0f - (1.0f - colorA) * (1.0f - depthMask * _Opacity));	
 	}
 
@@ -113,8 +121,8 @@ Shader "RenderFeatures/URPSunShafts"
 		UNITY_SETUP_INSTANCE_ID(IN);
 		UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
 		
-		float4 colorA = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv);
-		float4 colorB = SAMPLE_TEXTURE2D(_SunShaftColorBuffer, sampler_MainTex, IN.uv);
+		float4 colorA = SAMPLE_TEXTURE2D(_ColorTexture, sampler_ColorTexture, IN.uv);
+		float4 colorB = SAMPLE_TEXTURE2D(_SunShaftColorBuffer, sampler_ColorTexture, IN.uv);
 
 		float4 depthMask = saturate(colorB * _SunColor);	
 		return saturate(colorA + depthMask * _Opacity);	
@@ -128,7 +136,7 @@ Shader "RenderFeatures/URPSunShafts"
 		float4 color = 0;
 		for(int j = 0; j < 6; j++)   
 		{	
-			float4 tmpColor = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv);
+			float4 tmpColor = SAMPLE_TEXTURE2D(_ColorTexture, sampler_ColorTexture, IN.uv);
 			color += tmpColor;
 			IN.uv.xy += IN.blurVector;	
 		}
@@ -142,7 +150,7 @@ Shader "RenderFeatures/URPSunShafts"
 
 		float depthSample = SampleSceneDepth(IN.screenPos.xy / IN.screenPos.w);
 		
-		float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv);
+		float4 tex = SAMPLE_TEXTURE2D(_ColorTexture, sampler_ColorTexture, IN.uv);
 		
 		depthSample = Linear01Depth(depthSample, _ZBufferParams);
 		 
@@ -163,8 +171,8 @@ Shader "RenderFeatures/URPSunShafts"
 		UNITY_SETUP_INSTANCE_ID(IN);
 		UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
 
-		float4 sky = SAMPLE_TEXTURE2D(_Skybox, sampler_MainTex, IN.uv);
-		float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv);
+		float4 sky = SAMPLE_TEXTURE2D(_Skybox, sampler_ColorTexture, IN.uv);
+		float4 tex = SAMPLE_TEXTURE2D(_ColorTexture, sampler_ColorTexture, IN.uv);
 		
 		float2 vec = _SunPosition.xy - IN.uv.xy;
 		float dist = saturate(_SunPosition.w - length(vec));			

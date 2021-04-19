@@ -9,8 +9,8 @@ namespace SunShaft
         [Tooltip("When in the frame should the effect be renderered?  Leave at Before Rendering Post Processing for best results.")] public RenderPassEvent passEvent = RenderPassEvent.BeforeRenderingPostProcessing;
         [Tooltip("The material to use for the effect.  Assign this with a material that uses the URPSunShafts shader.")] public Material sunShaftMaterial = null;
 
-        [Space, Tooltip("What background will produce the effect?\nDepth mode requires the URP Asset's depth toggle to be on.")] public SunShaftRenderMode renderMode = SunShaftRenderMode.Depth;
-        [Tooltip("Lower resolution produces a blurrier effect.")] public SunShaftResolution resolution = SunShaftResolution.Normal;
+        [Space, Tooltip("What background will produce the effect?\nDepth mode requires the URP Asset's depth toggle to be on.")] public SunShaftRenderMode renderMode = SunShaftRenderMode.Color;
+        [Tooltip("Lower resolution produces a blurrier effect in the foreground but will lose resolution in the background.")] public SunShaftResolution resolution = SunShaftResolution.Normal;
         [Tooltip("Screen is subtler, while Add is more prominent")] public SunShaftBlendMode blendMode = SunShaftBlendMode.Screen;
         [Range(0, 1), Tooltip("Some recommended presets:\nDepth - 0.06\nSkybox/Color - 0.2")] public float depthThreshold = 0.018f;
         [Range(0, 1), Tooltip("How opaque is the effect?")] public float opacity = 1;
