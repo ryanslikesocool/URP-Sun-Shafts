@@ -9,6 +9,11 @@ namespace SunShaft
 
         private SunShaftPass sunShaftPass;
 
+        public bool Enabled
+        {
+            get => this.isActive;
+            set => this.SetActive(value);
+        }
         public SunShaftBlendMode BlendMode
         {
             get => settings.blendMode;
@@ -20,7 +25,7 @@ namespace SunShaft
             set
             {
                 settings.depthThreshold = Mathf.Clamp01(value);
-                settings.sunShaftMaterial.SetFloat(SunShaftPass.DEPTH_THRESHOLD_PROP, settings.depthThreshold);
+                settings.sunShaftMaterial.SetFloat(SunShaftPass.DepthThresholdID, settings.depthThreshold);
             }
         }
         public float Opacity
@@ -29,7 +34,7 @@ namespace SunShaft
             set
             {
                 settings.opacity = Mathf.Clamp01(value);
-                settings.sunShaftMaterial.SetFloat(SunShaftPass.OPACITY_PROP, settings.opacity);
+                settings.sunShaftMaterial.SetFloat(SunShaftPass.OpacityID, settings.opacity);
             }
         }
         public Vector3 Position
@@ -58,7 +63,7 @@ namespace SunShaft
             set
             {
                 settings.sunColorThreshold = value;
-                settings.sunShaftMaterial.SetVector(SunShaftPass.SUN_THRESHOLD_PROP, settings.sunColorThreshold);
+                settings.sunShaftMaterial.SetVector(SunShaftPass.SunThresholdID, settings.sunColorThreshold);
             }
         }
         public float BlurRadius
@@ -67,7 +72,7 @@ namespace SunShaft
             set
             {
                 settings.sunBlurRadius = value;
-                settings.sunShaftMaterial.SetVector(SunShaftPass.BLUR_RADIUS_PROP, new Vector4(settings.sunBlurRadius, settings.sunBlurRadius));
+                settings.sunShaftMaterial.SetVector(SunShaftPass.BlurRadiusID, new Vector4(settings.sunBlurRadius, settings.sunBlurRadius));
             }
         }
         public float MaxRadius
@@ -76,10 +81,7 @@ namespace SunShaft
             set => settings.maxRadius = value;
         }
 
-        public override void Create()
-        {
-            sunShaftPass = new SunShaftPass(name, settings);
-        }
+        public override void Create() => sunShaftPass = new SunShaftPass(name, settings);
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
@@ -87,9 +89,6 @@ namespace SunShaft
             renderer.EnqueuePass(sunShaftPass);
         }
 
-        public void ApplySettings()
-        {
-            sunShaftPass.ApplySettings();
-        }
+        public void ApplySettings() => sunShaftPass.ApplySettings();
     }
 }
