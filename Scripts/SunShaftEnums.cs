@@ -15,8 +15,8 @@ namespace SunShaft
 
     public enum SunShaftRenderMode
     {
-        Depth,
-        Skybox,
-        Color
+        //Depth = 0,
+        Skybox = 1,
+        Color = 2
     }
 }

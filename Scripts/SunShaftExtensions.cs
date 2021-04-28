@@ -1,25 +1,23 @@
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace SunShaft
 {
     public static class SunShaftExtensions
     {
-        public static Color SaturateOpacity(this Color input)
+        public static void Render(this CommandBuffer cmd, Camera camera, int texID, RenderTargetIdentifier texture, RenderTargetIdentifier target, Material material, int pass)
         {
-            input.a = Mathf.Clamp01(input.a);
-            return input;
-        }
+            cmd.SetGlobalTexture(texID, texture);
 
-        public static Color Opacity(this Color input, float opacity)
-        {
-            input.a = opacity;
-            return input;
-        }
+            cmd.SetRenderTarget(
+                target,
+                RenderBufferLoadAction.DontCare,
+                RenderBufferStoreAction.Store
+            );
 
-        public static Vector4 SetW(this Vector4 input, float w)
-        {
-            input.w = w;
-            return input;
+            cmd.SetViewProjectionMatrices(Matrix4x4.identity, Matrix4x4.identity);
+            cmd.DrawMesh(RenderingUtils.fullscreenMesh, Matrix4x4.identity, material, 0, pass);
         }
     }
 }
