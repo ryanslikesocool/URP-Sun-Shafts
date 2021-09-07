@@ -1,7 +1,7 @@
 # URP Sun Shafts
 A URP port of Unity's classic Standard Assets Effects package's Sun Shaft effect.
 
-![Sample Image](images/sample.jpg)
+![Sample Image](images~/sample.jpg)
 The effect can be subtle, but when done well can add some much needed vibrancy to a scene.
 
 ## Heads Up
