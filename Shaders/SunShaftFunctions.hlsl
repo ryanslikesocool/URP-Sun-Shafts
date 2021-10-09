@@ -1,3 +1,5 @@
+// Made with love by Ryan Boyer http://ryanjboyer.com <3
+
 #if defined(USING_STEREO_MATRICES)
     #define unity_eyeIndex unity_StereoEyeIndex
 #else

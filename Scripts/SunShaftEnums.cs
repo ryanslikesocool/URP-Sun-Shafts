@@ -1,3 +1,5 @@
+// Made with love by Ryan Boyer http://ryanjboyer.com <3
+
 namespace SunShaft
 {
     public enum SunShaftResolution
