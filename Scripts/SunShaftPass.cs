@@ -1,176 +1,161 @@
-// Made with love by Ryan Boyer http://ryanjboyer.com <3
+// Developed With Love by Ryan Boyer http://ryanjboyer.com <3
 
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.XR;
 
-namespace SunShaft
-{
-    public class SunShaftPass : ScriptableRenderPass
-    {
-        public static readonly int OpacityID = Shader.PropertyToID("_Opacity");
-        public static readonly int BlurRadiusID = Shader.PropertyToID("_BlurRadius");
-        public static readonly int SunColorID = Shader.PropertyToID("_SunColor");
-        public static readonly int SunPositionID = Shader.PropertyToID("_SunPosition");
-        public static readonly int SunThresholdID = Shader.PropertyToID("_SunThreshold");
-        public static readonly int SkyboxID = Shader.PropertyToID("_Skybox");
-        public static readonly int ColorBufferID = Shader.PropertyToID("_SunShaftColorBuffer");
-        public static readonly int ColorTexID = Shader.PropertyToID("_ColorTexture");
-        public static readonly int DepthThresholdID = Shader.PropertyToID("_DepthThreshold");
-        public static readonly int CameraVPID = Shader.PropertyToID("_CameraVP");
+namespace SunShaft {
+    public class SunShaftPass : ScriptableRenderPass {
+        private static readonly int[] RenderTargetIDs = new int[2] {
+            Shader.PropertyToID("_SunBuffer0"),
+            Shader.PropertyToID("_SunBuffer1")
+        };
+        private static readonly int TemporaryRenderTargetID = Shader.PropertyToID("_TemporaryRenderTarget");
 
-        private string profilerTag;
+        private List<ShaderTagId> shaderTagIDs = new List<ShaderTagId>();
 
-        private SunShaftSettings settings;
+        private RenderTargetIdentifier[] renderTargetIdentifiers = null;
+        private RenderTargetIdentifier tempRenderTargetIdentifier;
+        private FilteringSettings filteringSettings;
+        private RenderStateBlock renderStateBlock;
 
-        private int rtW;
-        private int rtH;
+        private Settings settings;
 
-        private readonly int sunBufferAId = Shader.PropertyToID("_SunBufferA");
-        private readonly int sunBufferBId = Shader.PropertyToID("_SunBufferB");
-        private RenderTargetIdentifier sunBufferA;
-        private RenderTargetIdentifier sunBufferB;
+        private Material material;
 
-        public SunShaftPass(string profilerTag, SunShaftSettings settings)
-        {
-            this.profilerTag = profilerTag;
+        public SunShaftPass(Settings settings, string tag) {
+            profilingSampler = new ProfilingSampler(tag);
+            filteringSettings = new FilteringSettings(null, settings.layerMask);
+
+            shaderTagIDs.Add(new ShaderTagId("SRPDefaultUnlit"));
+            shaderTagIDs.Add(new ShaderTagId("UniversalForward"));
+            shaderTagIDs.Add(new ShaderTagId("UniversalForwardOnly"));
+            shaderTagIDs.Add(new ShaderTagId("LightweightForward"));
+
+            renderStateBlock = new RenderStateBlock(RenderStateMask.Nothing);
+
+            this.renderPassEvent = settings.renderPassEvent;
             this.settings = settings;
-            renderPassEvent = settings.passEvent;
 
-            ApplySettings();
+            renderTargetIdentifiers = new RenderTargetIdentifier[2];
+
+            material = new Material(settings.shader);
         }
 
-        public void ApplySettings()
-        {
-            Material mat = settings.sunShaftMaterial;
-            mat.SetFloat(DepthThresholdID, settings.depthThreshold);
-            mat.SetFloat(OpacityID, settings.opacity);
-            mat.SetVector(SunThresholdID, settings.sunColorThreshold);
-            mat.SetVector(BlurRadiusID, Vector2.one * settings.sunBlurRadius);
-            mat.SetVector(BlurRadiusID, Vector2.one * settings.Offset);
+        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData) {
+            RenderTextureDescriptor descriptor = renderingData.cameraData.cameraTargetDescriptor;
+
+            //descriptor.colorFormat = RenderTextureFormat.ARGB32;
+            //descriptor.useDynamicScale = true;
+
+            { // temporary render target
+                //descriptor.depthBufferBits = 0;
+
+                cmd.GetTemporaryRT(TemporaryRenderTargetID, descriptor);
+                tempRenderTargetIdentifier = new RenderTargetIdentifier(TemporaryRenderTargetID);
+                ConfigureTarget(tempRenderTargetIdentifier);
+            }
+
+            { // sun buffer targets
+                //descriptor.depthBufferBits = 8;
+                descriptor.width /= (int)settings.resolution;
+                descriptor.height /= (int)settings.resolution;
+
+                for (int i = 0; i < 2; i++) {
+                    cmd.GetTemporaryRT(RenderTargetIDs[i], descriptor);
+                    renderTargetIdentifiers[i] = new RenderTargetIdentifier(RenderTargetIDs[i]);
+                    ConfigureTarget(renderTargetIdentifiers[i], depthAttachment);
+                    ConfigureClear(ClearFlag.Color, Color.clear);
+                }
+            }
         }
 
-        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
-        {
-            RenderTextureDescriptor cameraTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-            rtW = cameraTargetDescriptor.width / settings.Resolution;
-            rtH = cameraTargetDescriptor.height / settings.Resolution;
-            RenderTextureDescriptor newTargetDescriptor;
-            newTargetDescriptor =
-                XRSettings.enabled ?
-                XRSettings.eyeTextureDesc :
-                new RenderTextureDescriptor(rtW, rtH, cameraTargetDescriptor.colorFormat, cameraTargetDescriptor.depthBufferBits);
+        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
+            SortingCriteria sortingCriteria = SortingCriteria.CommonOpaque;
+            DrawingSettings drawingSettings = CreateDrawingSettings(shaderTagIDs, ref renderingData, sortingCriteria);
 
-            cmd.GetTemporaryRT(sunBufferAId, newTargetDescriptor);
-            cmd.GetTemporaryRT(sunBufferBId, newTargetDescriptor);
+            CommandBuffer cmd = CommandBufferPool.Get();
+            using (new ProfilingScope(cmd, profilingSampler)) {
+                ScriptableRenderer renderer = renderingData.cameraData.renderer;
+                Camera camera = renderingData.cameraData.camera;
 
-            sunBufferA = new RenderTargetIdentifier(sunBufferAId);
-            sunBufferB = new RenderTargetIdentifier(sunBufferBId);
+                // material properties
 
-            ConfigureTarget(sunBufferA);
-            ConfigureTarget(sunBufferB);
-        }
+                Vector3 sunViewportPosition = new Vector3(0.5f, 0.5f, 0.0f);
 
-        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
-        {
-            CommandBuffer cmd = CommandBufferPool.Get(profilerTag);
-            CameraData cameraData = renderingData.cameraData;
-            ScriptableRenderer renderer = cameraData.renderer;
-            Camera camera = cameraData.camera;
-            if (camera == null) { return; }
-            if (XRSettings.enabled)
-            {
-                context.StartMultiEye(camera);
-            }
-            // start rendering
+                material.SetVector("_BlurRadius4", new Vector4(1.0f, 1.0f, 0.0f, 0.0f) * settings.blurRadius);
+                material.SetVector("_SunPosition", new Vector4(sunViewportPosition.x, sunViewportPosition.y, sunViewportPosition.z, settings.maxRadius));
+                material.SetVector("_SunThreshold", settings.threshold);
 
-#if UNITY_EDITOR
-            if (!Application.isPlaying)
-            {
-                ApplySettings();
-            }
-#endif
+                // clear background
 
-#if ENABLE_VR && ENABLE_XR_MODULE
-            int eyeCount = renderingData.cameraData.xr.enabled && renderingData.cameraData.xr.singlePassEnabled ? 2 : 1;
-#else
-            int eyeCount = 1;
-#endif
+                if (settings.backgroundMode == BackgroundMode.Skybox) {
+                    var format = camera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default;
 
-            Matrix4x4[] cameraMatrices = new Matrix4x4[2];
-
-            for (int eyeIndex = 0; eyeIndex < eyeCount; eyeIndex++)
-            {
-                Matrix4x4 view = renderingData.cameraData.GetViewMatrix(eyeIndex);
-                Matrix4x4 proj = renderingData.cameraData.GetProjectionMatrix(eyeIndex);
-                cameraMatrices[eyeIndex] = proj * view;
-            }
-
-            Material material = settings.sunShaftMaterial;
-
-            Vector4 sunPosition = settings.sunPosition;
-            sunPosition.w = settings.maxRadius;
-
-            material.SetMatrixArray(CameraVPID, cameraMatrices);
-            material.SetVector(SunPositionID, sunPosition);
-            material.SetVector(SunColorID, settings.sunPosition.z >= 0 ? settings.SunColorIntensity : Vector4.zero);
-
-            //if (settings.renderMode == SunShaftRenderMode.Depth)
-            //{
-            //    cmd.Render(camera, ColorBufferID, renderer.cameraColorTarget, sunBufferA, material, 2);
-            //}
-            //else
-            {
-                RenderTextureFormat format = camera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default;
-
-                RenderTexture tmpBuffer = RenderTexture.GetTemporary(rtW, rtH, 0, format);
-                RenderTexture.active = tmpBuffer;
-
-                if (settings.renderMode == SunShaftRenderMode.Skybox)
-                {
+                    cmd.SetRenderTarget(tempRenderTargetIdentifier, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare);
                     GL.ClearWithSkybox(false, camera);
+
+                    //material.SetTexture("_Skybox", tempRenderTargetIdentifier);
+                    cmd.SetGlobalTexture("_Skybox", tempRenderTargetIdentifier);
+                    cmd.Blit(renderer.cameraColorTarget, renderTargetIdentifiers[0], material, 3);
+                } else {
+                    cmd.Blit(renderer.cameraColorTarget, renderTargetIdentifiers[0], material, 2);
                 }
-                else
-                {
-                    cmd.ClearRenderTarget(true, true, camera.backgroundColor);
+
+                // initial blur
+
+                float offset = settings.blurRadius * (1.0f / 768.0f);
+
+                material.SetVector("_BlurRadius4", new Vector4(offset, offset, 0.0f, 0.0f));
+                material.SetVector("_SunPosition", new Vector4(sunViewportPosition.x, sunViewportPosition.y, sunViewportPosition.z, settings.maxRadius));
+
+                // blur loop
+
+                for (int i = 0; i < settings.radialBlurIterations; i++) {
+                    // each iteration takes 2 * 6 samples
+                    // update _BlurRadius each time to cheaply get a smooth look
+
+                    //renderTargetIdentifiers[1] = RenderTexture.GetTemporary(rtW, rtH, 0);
+                    cmd.Blit(renderTargetIdentifiers[0], renderTargetIdentifiers[1], material, 1);
+                    //RenderTexture.ReleaseTemporary(lrBufferA);
+                    offset = settings.blurRadius * (((i * 2.0f + 1.0f) * 6.0f)) / 768.0f;
+                    material.SetVector("_BlurRadius4", new Vector4(offset, offset, 0.0f, 0.0f));
+
+                    //renderTargetIdentifiers[0] = RenderTexture.GetTemporary(rtW, rtH, 0);
+                    cmd.Blit(renderTargetIdentifiers[1], renderTargetIdentifiers[0], material, 1);
+                    //RenderTexture.ReleaseTemporary(lrBufferB);
+                    offset = settings.blurRadius * (((i * 2.0f + 2.0f) * 6.0f)) / 768.0f;
+                    material.SetVector("_BlurRadius4", new Vector4(offset, offset, 0.0f, 0.0f));
                 }
 
-                //cmd.Blit(tmpBuffer, sunBufferA, material, 3);
-                cmd.Render(camera, SkyboxID, tmpBuffer, sunBufferA, material, 3);
-                RenderTexture.ReleaseTemporary(tmpBuffer);
+                // combine
+
+                if (sunViewportPosition.z >= 0.0f) {
+                    material.SetVector("_SunColor", settings.sunColor * settings.intensity);
+                } else {
+                    material.SetVector("_SunColor", Vector4.zero); // no backprojection
+                }
+                //material.SetTexture("_ColorBuffer", renderTargetIdentifiers[0]);
+                cmd.SetGlobalTexture("_ColorBuffer", renderTargetIdentifiers[0]);
+
+                cmd.Blit(renderer.cameraColorTarget, tempRenderTargetIdentifier, material, (int)settings.blendMode);
+                cmd.Blit(tempRenderTargetIdentifier, renderer.cameraColorTarget, null);
             }
 
-            float ofs = settings.Offset;
-
-            for (int i = 0; i < settings.radialBlurIterations; i++)
-            {
-                //cmd.Blit(sunBufferA, sunBufferB, material, 1);
-                cmd.Render(camera, ColorTexID, sunBufferA, sunBufferB, material, 1);
-                material.SetVector(BlurRadiusID, Vector2.one * ofs * (i * 2 + 1) * 6);
-
-                //cmd.Blit(sunBufferB, sunBufferA, material, 1);
-                cmd.Render(camera, ColorTexID, sunBufferB, sunBufferA, material, 1);
-                material.SetVector(BlurRadiusID, Vector2.one * ofs * (i * 2 + 2) * 6);
-            }
-
-            cmd.SetGlobalTexture(ColorBufferID, sunBufferA);
-            //cmd.Blit(renderer.cameraColorTarget, renderer.cameraColorTarget, material, settings.BlendPass);
-            cmd.Render(camera, ColorTexID, renderer.cameraColorTarget, renderer.cameraColorTarget, material, settings.BlendPass);
-
-            // end rendering
-            if (XRGraphics.enabled)
-            {
-                context.StopMultiEye(camera);
-            }
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
         }
 
-        public override void OnCameraCleanup(CommandBuffer cmd)
-        {
-            cmd.ReleaseTemporaryRT(sunBufferAId);
-            cmd.ReleaseTemporaryRT(sunBufferBId);
+        public override void FrameCleanup(CommandBuffer cmd) {
+            if (cmd == null) {
+                throw new System.ArgumentNullException("cmd");
+            }
+
+            cmd.ReleaseTemporaryRT(TemporaryRenderTargetID);
+            for (int i = 0; i < 2; i++) {
+                cmd.ReleaseTemporaryRT(RenderTargetIDs[i]);
+            }
         }
     }
 }

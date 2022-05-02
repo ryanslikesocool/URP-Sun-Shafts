@@ -1,4 +1,4 @@
-// Made with love by Ryan Boyer http://ryanjboyer.com <3
+// Developed With Love by Ryan Boyer http://ryanjboyer.com <3
 
 #if defined(USING_STEREO_MATRICES)
     #define unity_eyeIndex unity_StereoEyeIndex
@@ -8,13 +8,11 @@
 
 half4x4 _CameraVP[2];
 
-half transformColor(half4 skyboxValue, half3 sunThreshold)
-{
+half transformColor(half4 skyboxValue, half3 sunThreshold) {
     return dot(max(skyboxValue.rgb - sunThreshold, 0), 1); // threshold and convert to greyscale
 }
 
-half3 worldToScreenPosition(half3 pnt)
-{
+half3 worldToScreenPosition(half3 pnt) {
     half4x4 camVP = _CameraVP[unity_eyeIndex];
 
     half3 result;

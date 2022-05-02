@@ -1,4 +1,4 @@
-// Made with love by Ryan Boyer http://ryanjboyer.com <3
+// Developed With Love by Ryan Boyer http://ryanjboyer.com <3
 
 using UnityEngine;
 using UnityEngine.Rendering;
