@@ -110,7 +110,7 @@ Shader "RenderFeatures/URPSunShafts"
 
 		float4 depthMask = saturate(colorB * _SunColor);
 
-		return saturate(1.0f - (1.0f - colorA) * (1.0f - depthMask * _Opacity));	
+		return (1.0f - (1.0f - colorA) * (1.0f - depthMask * _Opacity));	
 	}
 
 	float4 fragAdd(Varyings IN) : SV_Target
